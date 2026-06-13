@@ -16,60 +16,68 @@
 <h3 align="center">VoidNovelEngine Tools Collection — v1.3.0</h3>
 
 <p align="center">
-AI-powered visual novel toolkit — MCP server, custom nodes, engine patches, scene templates, skills.
+MCP Server · Custom Nodes · Engine Patches · Scene Generator · VPak Packer
 </p>
 
 ---
 
-## 📑 Navigation
+## Overview
 
-| Category | Description |
-|----------|-------------|
-| [📦 Install](#-install) | Requirements + step-by-step |
-| [🚀 MCP Tools](#-mcp-tools-16) | 16 tools overview |
-| [🧩 Custom Nodes](#-custom-nodes) | `dialog_line` combined dialogue |
-| [🔩 Engine Patches](#-engine-patches) | Hot-reload patch |
-| [📚 Skills & Pitfalls](#-skills--pitfalls) | AI skills + top 10 pitfalls |
-| [📐 Examples](#-examples) | Test flow |
+| Component | Description |
+|-----------|-------------|
+| `tools/vne-mcp-server/` | MCP server, 16 AI tools |
+| `tools/vne-packager/` | VPak resource packer |
+| `custom-nodes/` | Custom nodes (dialog_line, etc.) |
+| `engine-patches/` | Engine patches (hot-reload, etc.) |
+| `skills/` | Hermes Agent skills |
+| `examples/` | Test flows |
 
 ---
 
-## 📦 Install
+## 📦 Installation
+
+Three guides for different components:
+
+| Guide | For | Link |
+|-------|-----|------|
+| 🔧 **Tools** | All users — deploy to VNE project | [→](#-install-1-tools) |
+| 🔌 **MCP Clients** | AI assistant users — Cursor / Trae / Claude / Hermes | [→](#-install-2-mcp-client-setup) |
+| 📚 **Skills** | Hermes Agent users — load VNE skills | [→](#-install-3-skills) |
+
+---
+
+## 🔧 Install 1: Tools
 
 ### Requirements
 
 | Component | Version | Notes |
 |-----------|---------|-------|
-| **VNE Editor** | 0.1.0-dev.3+ | Must be able to open and run |
-| **Python** | 3.8+ | VNE auto-discovers Python from PATH and common install dirs |
-| **OS** | Windows | VNE is Windows-only (WSL works for project file access) |
-| **Disk** | < 1 MB | Pure text, zero pip dependencies |
+| VNE Editor | 0.1.0-dev.3+ | Running and stable |
+| Python | 3.8+ | Auto-discovered by VNE |
+| Git | Any | For cloning |
+| OS | Windows | VNE is Windows-only |
 
-The MCP server uses Python **stdlib only** (`json`, `http.server`, `pathlib`). No `pip install` needed.
+Zero pip dependencies — stdlib only.
 
-### Quick Install (3 steps)
+### Steps
 
 ```bash
-# Step 1: Navigate to your VNE project
 cd D:\YourVNEProject\
-
-# Step 2: Clone into tools/
 git clone https://github.com/zv163/vne-mcp-server.git tools/vne-mcp-server
-
-# Step 3: Copy custom nodes
 cp tools/vne-mcp-server/custom-nodes/dialog_line.lua application/node/custom/
+# Restart VNE
+```
+
+### Verify
+
+Console shows:
+```
+MCP 服务已就绪 http://127.0.0.1:8765
 ```
 
 ### Enable Hot-Reload (optional)
 
-Edit `application/framework/mcp_host.lua` per `engine-patches/mcp_host_hotreload.md`. Adds 22 lines. After this, editing custom nodes no longer requires VNE restart.
-
-### Verify
-
-1. Restart VNE
-2. Console should show: `MCP 服务已就绪 http://127.0.0.1:8765`
-3. In Hermes Agent: `vne_project_info` → returns project info = success
-4. If no MCP log appears, check Python discovery (VNE searches `python.exe` automatically)
+Edit `application/framework/mcp_host.lua` per `engine-patches/mcp_host_hotreload.md`.
 
 ### Uninstall
 
@@ -80,98 +88,166 @@ rm application/node/custom/dialog_line.lua
 
 ---
 
-## 🚀 MCP Tools (16)
+## 🔌 Install 2: MCP Client Setup
 
-All prefixed `vne_`. Full API docs in `skills/void-novel-engine/references/mcp-api.md`.
+VNE MCP server runs at `127.0.0.1:8765` via HTTP/SSE.
 
-### Project Info
-`vne_project_info` · `vne_lua_api` · `vne_export_config`
+```
+Transport: SSE (HTTP)
+Server:    http://127.0.0.1:8765
+SSE:       http://127.0.0.1:8765/sse
+Messages:  http://127.0.0.1:8765/message
+```
 
-### Resources
-`vne_list_resources` · `vne_list_directory` · `vne_get_resource` · `vne_refresh_assets` ★ · `vne_register_asset` ★
-
-### Files
-`vne_read_file` · `vne_search`
-
-### Flow
-`vne_validate_flow` ★ · `vne_list_node_types`
-
-### VPak
-`vne_pack_resources` · `vne_read_vpak`
-
-### Dev & Debug
-`vne_console_log` ★ · `vne_reload_custom_nodes` ★★
-
-> ★ = v1.2.0  ·  ★★ = v1.3.0
+> MCP server starts automatically with VNE. No manual launch needed.
 
 ---
 
-## 🧩 Custom Nodes
+### Cursor
 
-### `dialog_line` — Combined Dialogue Line
+Edit `~/.cursor/mcp.json`:
 
-**File**: `custom-nodes/dialog_line.lua` · **Type**: `dialog_line` · **Category**: Presentation
-
-One node = hide previous + play audio (optional) + show current.
-
-| Pin | Type | Notes |
-|-----|------|-------|
-| `in` | flow | Input |
-| `prev_dialog` | object | Previous dialog_box (optional, chain) |
-| `role_text` | string | Character name |
-| `dialogue_text` | string | Dialogue text |
-| `audio` | audio | Audio (optional, skip if unset) |
-| `volume` | float | 0~1, default 0.8 |
-| `out` | flow | Output |
-| `dialog_box` | object | Current dialog box → next node |
-
-**Chain**: `nodeA.dialog_box → nodeB.prev_dialog`
-
-10 lines drop from ~40 nodes to ~10.
+```json
+{
+  "mcpServers": {
+    "vne": {
+      "transport": "sse",
+      "url": "http://127.0.0.1:8765/sse"
+    }
+  }
+}
+```
 
 ---
 
-## 🔩 Engine Patches
+### Trae
 
-See `engine-patches/mcp_host_hotreload.md`. Insert 22 lines into `mcp_host.lua` update loop.
-
-**Note**: After reload, close/reopen .flow files using custom nodes.
+```json
+{
+  "mcpServers": {
+    "vne": {
+      "type": "sse",
+      "url": "http://127.0.0.1:8765/sse"
+    }
+  }
+}
+```
 
 ---
 
-## 📚 Skills & Pitfalls
+### Claude Desktop
 
-4 AI skills in `skills/`:
+Edit `%APPDATA%\Claude\claude_desktop_config.json`:
 
-| Skill | Content |
+```json
+{
+  "mcpServers": {
+    "vne": {
+      "command": "npx",
+      "args": [
+        "-y", "@anthropic/mcp-client-sse",
+        "http://127.0.0.1:8765/sse"
+      ]
+    }
+  }
+}
+```
+
+Or stdio mode:
+
+```json
+{
+  "mcpServers": {
+    "vne": {
+      "command": "python",
+      "args": [
+        "tools/vne-mcp-server/tools/vne-mcp-server/vne_mcp_server.py",
+        "--project-path", ".",
+        "--stdio"
+      ]
+    }
+  }
+}
+```
+
+---
+
+### Hermes Agent
+
+In `config.yaml`:
+
+```yaml
+mcp:
+  servers:
+    - name: vne
+      transport: sse
+      url: http://127.0.0.1:8765/sse
+```
+
+Or via CLI:
+
+```bash
+hermes mcp add vne --transport sse --url http://127.0.0.1:8765/sse
+```
+
+---
+
+### Verify MCP
+
+Run in your AI assistant:
+
+```
+vne_project_info
+```
+
+Returns project info = connected.
+
+---
+
+## 📚 Install 3: Skills
+
+Skills are Hermes Agent domain knowledge modules. 4 skills included.
+
+### Setup
+
+```bash
+mkdir -p ~/.hermes/skills/software-development
+ln -s "$(pwd)/tools/vne-mcp-server/skills/void-novel-engine" \
+      ~/.hermes/skills/software-development/void-novel-engine
+ln -s "$(pwd)/tools/vne-mcp-server/skills/vne-flow-patterns" \
+      ~/.hermes/skills/software-development/vne-flow-patterns
+ln -s "$(pwd)/tools/vne-mcp-server/skills/vne-scene-recipes" \
+      ~/.hermes/skills/software-development/vne-scene-recipes
+ln -s "$(pwd)/tools/vne-mcp-server/skills/vne-custom-extensions" \
+      ~/.hermes/skills/software-development/vne-custom-extensions
+```
+
+### Skill List
+
+| Skill | Purpose |
 |-------|---------|
-| `void-novel-engine` | Engine guide: architecture, API, VPak, .flow format, **top 10 pitfalls** |
-| `vne-flow-patterns` | Node patterns: dialog lifecycle, branching, foreground, stair layout |
-| `vne-scene-recipes` | Ready scene templates: confession, farewell, rooftop |
-| `vne-custom-extensions` | Custom node dev: `make_definition` API, `try_check_input` |
+| `void-novel-engine` | Engine guide: architecture, API, VPak, pitfalls |
+| `vne-flow-patterns` | Node patterns: dialog, branch, foreground, layout |
+| `vne-scene-recipes` | Scene templates: classroom, sakura, rooftop |
+| `vne-custom-extensions` | Custom node dev: API, try_check_input |
 
-### 🔟 Top 10 Pitfalls
-
-> Full details in `skills/void-novel-engine/SKILL.md` → "十大陷阱" section.
-
-| # | Pitfall | Fix |
-|---|---------|-----|
-| 1 | choice output = `route_1` | `choice_1`~`choice_5` |
-| 2 | add_foreground missing shader | psv=2, include shader |
-| 3 | merge_flow pins lack key | Avoid this node |
-| 4 | >80 nodes per .flow | Split <60/scene |
-| 5 | dialog_box no auto-replace | Explicit hide→show chain |
-| 6 | hide missing dialog_box link | `hide(fade=0.05)` + `show` dual-link |
-| 7 | Same-scene bg change | bg change = switch_scene |
-| 8 | choice output = `branch_N` | Use `choice_N` |
-| 9 | link pin_id is string | Must be int |
-| 10 | Startup crash no error | Clear current_graph_flow_guid |
+Skills auto-load when AI handles VNE tasks.
 
 ---
 
-## 📐 Examples
+## 🏗️ Repo Structure
 
-`examples/_dialog_line_test.flow` — 6-node chain demo.
+```
+vne-mcp-server/
+├── tools/vne-mcp-server/vne_mcp_server.py
+├── tools/vne-packager/vpak.py
+├── custom-nodes/dialog_line.lua
+├── engine-patches/mcp_host_hotreload.md
+├── skills/{void-novel-engine,vne-flow-patterns,vne-scene-recipes,vne-custom-extensions}/
+├── examples/_dialog_line_test.flow
+├── README.md / README.en.md / README.ja.md
+└── LICENSE (MIT)
+```
 
 ---
 

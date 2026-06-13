@@ -16,186 +16,247 @@
 <h3 align="center">VoidNovelEngine Tools Collection — v1.3.0</h3>
 
 <p align="center">
-AI 驱动的视觉小说开发工具集 — 让 AI 助手能读写校验 .flow、热重载自定义节点、一键生成场景。
+MCP 服务端 · 自定义节点 · 引擎补丁 · 场景生成器 · VPak 打包器
+<br>
+一套覆盖视觉小说开发全流程的 AI 辅助工具链
 </p>
 
 ---
 
-## 📑 导航
+## 内容概览
 
-| 分类 | 说明 |
+| 组件 | 说明 |
 |------|------|
-| [📦 安装](#-安装) | 环境要求 + 分步安装 |
-| [🚀 MCP 工具](#-mcp-工具-16-个) | 16 个工具速览 |
-| [🧩 自定义节点](#-自定义节点) | `dialog_line` 合并对话行 |
-| [🔩 引擎补丁](#-引擎补丁) | 热重载补丁 |
-| [📚 技能与陷阱](#-技能与陷阱) | AI 技能 + 十大陷阱速查 |
-| [📐 示例](#-示例) | 测试流 |
+| `tools/vne-mcp-server/` | MCP 服务端，16 个 AI 工具 |
+| `tools/vne-packager/` | VPak 资源打包器 |
+| `custom-nodes/` | 自定义节点（dialog_line 等） |
+| `engine-patches/` | 引擎补丁（热重载等） |
+| `skills/` | Hermes Agent 技能库 |
+| `examples/` | 测试流示例 |
 
 ---
 
-## 📦 安装
+## 📦 安装指南
+
+本工具集包含三类组件，安装方式各不相同：
+
+| 教程 | 适用对象 | 跳转 |
+|------|---------|------|
+| 🔧 **工具安装** | 所有用户 — 将工具部署到 VNE 项目 | [→](#-安装一工具安装) |
+| 🔌 **MCP 客户端配置** | AI 助手用户 — 连接 Cursor / Trae / Claude / Hermes | [→](#-安装二mcp-客户端配置) |
+| 📚 **技能安装** | Hermes Agent 用户 — 加载 VNE 技能 | [→](#-安装三技能安装) |
+
+---
+
+## 🔧 安装一：工具安装
+
+将本仓库的工具部署到 VNE 项目中。
 
 ### 环境要求
 
-| 组件 | 版本要求 | 说明 |
-|------|---------|------|
-| **VNE 编辑器** | 0.1.0-dev.3+ | 项目必须能正常打开 |
-| **Python** | 3.8+ | VNE 会自动检测 PATH 和常见安装目录下的 Python |
-| **操作系统** | Windows | VNE 仅支持 Windows（WSL 下通过 /mnt/ 访问项目文件） |
-| **磁盘空间** | < 1 MB | 纯文本工具集，无额外依赖 |
+| 组件 | 版本 | 说明 |
+|------|------|------|
+| VNE 编辑器 | 0.1.0-dev.3+ | 项目能正常打开运行 |
+| Python | 3.8+ | VNE 自动从 PATH 和常见目录检测 |
+| Git | 任意 | 用于克隆仓库 |
+| 操作系统 | Windows | VNE 仅支持 Windows |
 
-Python 无需安装 pip 包，MCP 服务端仅使用 Python **标准库**（`json`, `http.server`, `pathlib` 等）。
+MCP 服务端**零 pip 依赖**，仅使用 Python 标准库。
 
-### 快速安装（3 步）
+### 步骤
 
 ```bash
-# 步骤 1: 进入 VNE 项目目录
-cd D:\YourVNEProject\     # Windows
-# 或 WSL 下:
-cd /mnt/d/YourVNEProject/
+# 1. 进入 VNE 项目根目录
+cd D:\YourVNEProject\
 
-# 步骤 2: 克隆工具集到 tools/ 目录
+# 2. 克隆工具集
 git clone https://github.com/zv163/vne-mcp-server.git tools/vne-mcp-server
 
-# 步骤 3: 复制自定义节点到 VNE 项目
+# 3. 复制自定义节点（可选）
 cp tools/vne-mcp-server/custom-nodes/dialog_line.lua application/node/custom/
+
+# 4. 重启 VNE 编辑器
 ```
+
+### 验证
+
+重启后控制台出现即成功：
+
+```
+MCP 服务已就绪 http://127.0.0.1:8765
+```
+
+如果未出现，检查 Python 是否可被发现（`python --version` 能正常输出即可）。
 
 ### 启用热重载（可选）
 
-编辑 `application/framework/mcp_host.lua`，按 `engine-patches/mcp_host_hotreload.md` 中的说明添加 22 行代码。启用后改自定义节点无需重启 VNE。
-
-### 验证安装
-
-1. 重启 VNE 编辑器
-2. 查看控制台输出，应出现：
-   ```
-   MCP 服务已就绪 http://127.0.0.1:8765
-   ```
-3. 在 Hermes Agent 中执行 `vne_project_info`，返回项目信息即成功
-4. 如果 VNE 启动后没有 MCP 日志，检查 Python 是否可被 VNE 发现（VNE 会自动搜索 `python.exe`）
+编辑 `application/framework/mcp_host.lua`，按 `engine-patches/mcp_host_hotreload.md` 添加 22 行代码。改自定义节点后无需重启 VNE。
 
 ### 卸载
 
 ```bash
-# 删除 tools 目录即可
 rm -rf tools/vne-mcp-server/
-# 删除自定义节点
 rm application/node/custom/dialog_line.lua
 ```
 
 ---
 
-## 🚀 MCP 工具 (16 个)
+## 🔌 安装二：MCP 客户端配置
 
-所有工具前缀 `vne_`，AI 助手可直接调用。完整 API 文档见 `skills/void-novel-engine/references/mcp-api.md`。
+VNE MCP 服务端在 `127.0.0.1:8765` 提供 HTTP/SSE 传输。以下为各客户端配置方法。
 
-### 项目信息
-`vne_project_info` · `vne_lua_api` · `vne_export_config`
+### 通用信息
 
-### 资源管理
-`vne_list_resources` · `vne_list_directory` · `vne_get_resource` · `vne_refresh_assets` ★ · `vne_register_asset` ★
+```
+传输协议: SSE (HTTP)
+服务地址: http://127.0.0.1:8765
+SSE 端点: http://127.0.0.1:8765/sse
+消息端点: http://127.0.0.1:8765/message
+```
 
-### 文件操作
-`vne_read_file` · `vne_search`
-
-### 流图校验
-`vne_validate_flow` ★ · `vne_list_node_types`
-
-### VPak 打包
-`vne_pack_resources` · `vne_read_vpak`
-
-### 调试开发
-`vne_console_log` ★ · `vne_reload_custom_nodes` ★★
-
-> ★ = v1.2.0 新增  ·  ★★ = v1.3.0 新增
+> VNE 启动后 MCP 服务端自动运行，无需手动启动。
 
 ---
 
-## 🧩 自定义节点
+### Cursor
 
-### `dialog_line` — 合并对话行
+编辑 Cursor 的 MCP 配置文件（`~/.cursor/mcp.json`）：
 
-**文件**: `custom-nodes/dialog_line.lua` · **类型**: `dialog_line` · **分类**: 演出控制
-
-一个节点完成「隐藏上一句 + 播放音频(可选) + 显示当前对话」。
-
+```json
+{
+  "mcpServers": {
+    "vne": {
+      "transport": "sse",
+      "url": "http://127.0.0.1:8765/sse"
+    }
+  }
+}
 ```
-传统: show → hide → play_audio → show  (4 节点)
-现在: dialog_line  (1 节点)
-```
 
-| 引脚 | 类型 | 说明 |
-|------|------|------|
-| `in` | flow | 流程输入 |
-| `prev_dialog` | object | 上一句的 dialog_box（可选，链式连接） |
-| `role_text` | string | 角色名 |
-| `dialogue_text` | string | 台词内容 |
-| `audio` | audio | 音频（可选，无则跳过） |
-| `volume` | float | 音量 (0~1，默认 0.8) |
-| `out` | flow | 流程输出 |
-| `dialog_box` | object | 当前对话框对象（连接下一节点） |
-
-**链式用法**: `nodeA.dialog_box → nodeB.prev_dialog`
-
-效果：10 句对话从 ~40 节点降到 ~10 节点。
+重启 Cursor，在 AI 面板中即可使用 `vne_*` 工具。
 
 ---
 
-## 🔩 引擎补丁
+### Trae
 
-### mcp_host.lua 热重载补丁
+编辑 Trae MCP 配置：
 
-详见 `engine-patches/mcp_host_hotreload.md`。
-
-在 `mcp_host.lua` 的 update 循环中插入 22 行代码，配合 `vne_reload_custom_nodes` 实现自定义节点热重载。
-
+```json
+{
+  "mcpServers": {
+    "vne": {
+      "type": "sse",
+      "url": "http://127.0.0.1:8765/sse"
+    }
+  }
+}
 ```
-MCP 工具写 flag → VNE 每帧检测 → definition_loader.load() → 写 result → MCP 工具读回
-```
-
-**注意**：重载后需关闭并重新打开使用自定义节点的 .flow 文件。
 
 ---
 
-## 📚 技能与陷阱
+### Claude Desktop
 
-4 个 AI 技能（位于 `skills/`），供 Hermes Agent 加载：
+编辑 Claude Desktop 配置（`%APPDATA%\Claude\claude_desktop_config.json`）：
 
-| 技能 | 内容 |
-|------|------|
-| `void-novel-engine` | 引擎全面指南：架构、API、VPak、.flow 格式、**十大陷阱** |
-| `vne-flow-patterns` | 节点连接模式：对话框生命周期、分支、前景图、楼梯布局 |
-| `vne-scene-recipes` | 即用场景模板：教室表白、樱花告别、天台谈心 |
-| `vne-custom-extensions` | 自定义节点开发：`make_definition` API、`try_check_input` |
+```json
+{
+  "mcpServers": {
+    "vne": {
+      "command": "npx",
+      "args": [
+        "-y", "@anthropic/mcp-client-sse",
+        "http://127.0.0.1:8765/sse"
+      ]
+    }
+  }
+}
+```
 
-### 🔟 十大陷阱速查
+或使用 stdio 代理：
 
-> 完整版见 `skills/void-novel-engine/SKILL.md` 文末「十大陷阱」章节。
-
-| # | 陷阱 | 正确做法 |
-|---|------|---------|
-| 1 | choice 输出 key = `route_1` | `choice_1`~`choice_5` |
-| 2 | add_foreground 缺 shader pin | psv=2，含 shader |
-| 3 | merge_flow pin 缺 key | 避免使用 |
-| 4 | 单 .flow > 80 节点 | 拆分 < 60 节点/场景 |
-| 5 | dialog_box 不自动替换 | 显式 hide → show 链 |
-| 6 | hide 无 dialog_box 链接 | `hide(fade=0.05)` + `show` 双链接 |
-| 7 | 同场景换背景 | 换背景 = switch_scene |
-| 8 | choice 输出 key = `branch_N` | 用 `choice_N` |
-| 9 | link pin_id 是 string | 必须 int |
-| 10 | 启动崩溃无报错 | 清 current_graph_flow_guid |
+```json
+{
+  "mcpServers": {
+    "vne": {
+      "command": "python",
+      "args": [
+        "tools/vne-mcp-server/tools/vne-mcp-server/vne_mcp_server.py",
+        "--project-path", ".",
+        "--stdio"
+      ]
+    }
+  }
+}
+```
 
 ---
 
-## 📐 示例
+### Hermes Agent
 
-`examples/_dialog_line_test.flow` — 6 节点测试流：
+Hermes 通过其 MCP 插件原生支持 SSE 传输。在 `config.yaml` 中配置：
+
+```yaml
+mcp:
+  servers:
+    - name: vne
+      transport: sse
+      url: http://127.0.0.1:8765/sse
+```
+
+或在终端中：
+
+```bash
+hermes mcp add vne --transport sse --url http://127.0.0.1:8765/sse
+```
+
+重启 Hermes 后执行 `vne_project_info` 验证连接。
+
+---
+
+### 验证 MCP 连接
+
+在 AI 助手中执行：
 
 ```
-entry → set_style → dialog_line(张晨) → dialog_line(小美+BGM) → dialog_line(林雪) → 菜单
+vne_project_info
 ```
+
+返回项目信息（标题、资产数量、路径等）即连接成功。
+
+---
+
+## 📚 安装三：技能安装
+
+技能（Skills）是 Hermes Agent 的领域知识模块。VNE 工具合集包含 4 个技能。
+
+### 自动安装
+
+```bash
+# 克隆仓库后，技能已在 skills/ 目录
+# Hermes 自动发现 ~/.hermes/skills/ 下的技能
+
+# 创建软链接
+mkdir -p ~/.hermes/skills/software-development
+ln -s "$(pwd)/tools/vne-mcp-server/skills/void-novel-engine" \
+      ~/.hermes/skills/software-development/void-novel-engine
+ln -s "$(pwd)/tools/vne-mcp-server/skills/vne-flow-patterns" \
+      ~/.hermes/skills/software-development/vne-flow-patterns
+ln -s "$(pwd)/tools/vne-mcp-server/skills/vne-scene-recipes" \
+      ~/.hermes/skills/software-development/vne-scene-recipes
+ln -s "$(pwd)/tools/vne-mcp-server/skills/vne-custom-extensions" \
+      ~/.hermes/skills/software-development/vne-custom-extensions
+```
+
+### 技能列表
+
+| 技能名 | 用途 |
+|--------|------|
+| `void-novel-engine` | VNE 引擎全面指南：架构、API、VPak、.flow、十大陷阱 |
+| `vne-flow-patterns` | 节点连接模式：对话框、分支、前景图、楼梯布局 |
+| `vne-scene-recipes` | 场景模板：教室、樱花树、天台 |
+| `vne-custom-extensions` | 自定义节点开发：`make_definition`、`try_check_input` |
+
+安装后，AI 在处理 VNE 相关任务时会自动加载对应技能。
 
 ---
 
@@ -203,16 +264,13 @@ entry → set_style → dialog_line(张晨) → dialog_line(小美+BGM) → dial
 
 ```
 vne-mcp-server/
-├── tools/vne-mcp-server/vne_mcp_server.py   ← MCP 服务端 (16 工具)
-├── tools/vne-packager/vpak.py               ← VPak 打包器
-├── custom-nodes/dialog_line.lua             ← 合并对话节点
-├── engine-patches/mcp_host_hotreload.md     ← 热重载补丁
-├── skills/                                  ← AI 技能库
-│   ├── void-novel-engine/                   ← 引擎指南 + 十大陷阱
-│   ├── vne-flow-patterns/                   ← 流图模式
-│   ├── vne-scene-recipes/                   ← 场景模板
-│   └── vne-custom-extensions/               ← 自定义节点开发
-├── examples/_dialog_line_test.flow          ← 测试流
+├── tools/
+│   ├── vne-mcp-server/vne_mcp_server.py   ← MCP 服务端 (16 工具)
+│   └── vne-packager/vpak.py               ← VPak 打包器
+├── custom-nodes/dialog_line.lua           ← 合并对话节点
+├── engine-patches/mcp_host_hotreload.md   ← 热重载补丁
+├── skills/                                ← Hermes Agent 技能
+├── examples/_dialog_line_test.flow        ← 测试流
 ├── README.md / README.en.md / README.ja.md
 └── LICENSE (MIT)
 ```
