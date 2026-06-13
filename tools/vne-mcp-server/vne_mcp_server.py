@@ -87,7 +87,7 @@ class MCPServer:
             "protocolVersion": "2025-11-25",
             "capabilities": {"tools": {}},
             "serverInfo": {"name": self.name, "version": self.version},
-            "instructions": "VNE MCP Server — provides 11 tools for VoidNovelEngine projects. Use vne_project_info first to get an overview, vne_search for code lookup, vne_console_log for editor diagnostics.",
+            "instructions": "VNE MCP Server — provides 15 tools for VoidNovelEngine projects. Use vne_project_info first to get an overview, vne_list_node_types to see available flow nodes, vne_validate_flow before opening generated .flow files, vne_refresh_assets after creating files externally.",
         }
         self._send_response(msg.get("id"), result)
 
@@ -406,6 +406,283 @@ class VNEProject:
 
         return export_config
 
+    def refresh(self):
+        """Clear cached data to force re-reading project.vne on next access.
+        Use this after creating/modifying files externally so the server
+        picks up new assets without needing an engine restart."""
+        self._vne_data = None
+        self._vne_path = None
+
+    def register_asset(self, relative_path: str, asset_type: str,
+                       guid: str = None, size: int = None, mtime: int = None,
+                       add_to_open_flows: bool = False) -> Dict:
+        """Atomically register a new asset: creates .meta file, adds to project.vne registry.
+        
+        Args:
+            relative_path: e.g. 'flow/校园恋爱.flow'
+            asset_type: e.g. 'flow', 'texture', 'audio'
+            guid: auto-generated if None
+            size: file size in bytes (auto-detected if None)
+            mtime: modification time (auto-detected if None)
+            add_to_open_flows: if True, prepends to open_flow_guid_list
+        Returns:
+            Dict with guid, meta_path, and registration status
+        """
+        import uuid as _uuid
+        
+        self._ensure_loaded()
+        if not self._vne_path:
+            return {"error": "No project.vne found"}
+        
+        base = self._vne_path.parent
+        
+        # Determine file path
+        file_path = base / relative_path
+        if not file_path.exists():
+            return {"error": f"File not found: {file_path}"}
+        
+        # Auto-detect size and mtime
+        if size is None:
+            size = file_path.stat().st_size
+        if mtime is None:
+            mtime = int(file_path.stat().st_mtime)
+        
+        # Generate GUID
+        if guid is None:
+            guid = str(_uuid.uuid4())
+        
+        # Create .meta file
+        meta_path = file_path.parent / (file_path.name + ".meta")
+        meta_rel = str(meta_path.relative_to(base)).replace("\\", "/")
+        meta_content = {"version": 1, "importer": [], "guid": guid}
+        with open(meta_path, 'w', encoding='utf-8') as f:
+            json.dump(meta_content, f, ensure_ascii=False)
+        
+        # Add to project.vne asset_registry
+        new_asset = {
+            "guid": guid,
+            "last_known_relative_path": relative_path.replace("\\", "/"),
+            "type": asset_type,
+            "last_known_meta_path": meta_rel,
+            "file_signature": {"size": size, "mtime": mtime},
+        }
+        
+        assets = self._vne_data.setdefault("asset_registry", {}).setdefault("assets", [])
+        assets.append(new_asset)
+        
+        # Optionally add to open flows
+        if add_to_open_flows and asset_type == "flow":
+            open_flows = self._vne_data.setdefault("open_flow_guid_list", [])
+            if guid not in open_flows:
+                open_flows.insert(0, guid)
+        
+        # Write back project.vne
+        with open(self._vne_path, 'w', encoding='utf-8') as f:
+            json.dump(self._vne_data, f, ensure_ascii=False, separators=(',', ':'))
+        
+        return {
+            "status": "registered",
+            "guid": guid,
+            "relative_path": relative_path,
+            "type": asset_type,
+            "meta_path": meta_rel,
+            "size": size,
+            "mtime": mtime,
+        }
+
+    def validate_flow(self, flow_path: str) -> Dict:
+        """Validate a .flow file for structural correctness.
+        
+        Checks:
+        - Valid JSON
+        - All nodes have valid type_ids
+        - All input pins (except entry) have 'key' fields
+        - show_choice_button uses correct output keys (choice_1..5 not route_1..5)
+        - merge_flow inputs have explicit keys
+        - All links reference existing pin IDs
+        Returns validation result with errors/warnings list.
+        """
+        self._ensure_loaded()
+        base = self._vne_path.parent if self._vne_path else Path(".")
+        full_path = base / flow_path
+        
+        if not full_path.exists():
+            return {"valid": False, "errors": [f"File not found: {full_path}"]}
+        
+        try:
+            with open(full_path, 'r', encoding='utf-8-sig') as f:
+                flow = json.load(f)
+        except json.JSONDecodeError as e:
+            return {"valid": False, "errors": [f"Invalid JSON: {e}"]}
+        
+        errors = []
+        warnings = []
+        
+        nodes = flow.get("node_pool", [])
+        links = flow.get("link_pool", [])
+        
+        # Collect all pin IDs
+        all_pin_ids = set()
+        node_by_id = {}
+        for node in nodes:
+            nid = node.get("id")
+            node_by_id[nid] = node
+            for p in node.get("input_pin_list", []):
+                all_pin_ids.add(p["id"])
+            for p in node.get("output_pin_list", []):
+                all_pin_ids.add(p["id"])
+        
+        # Known valid type_ids (from application/node/builtin/)
+        known_types = self._discover_node_types()
+        
+        for node in nodes:
+            nid = node.get("id", "?")
+            tid = node.get("type_id", "")
+            
+            if not tid:
+                errors.append(f"Node {nid}: missing type_id")
+                continue
+            
+            if known_types and tid not in known_types:
+                warnings.append(f"Node {nid}: unknown type_id '{tid}' (may be custom)")
+            
+            # Check input pins for keys
+            for p in node.get("input_pin_list", []):
+                if "key" not in p:
+                    if tid == "merge_flow":
+                        errors.append(
+                            f"Node {nid} (merge_flow): input pin {p['id']} missing 'key'. "
+                            "merge_flow inputs require explicit keys — this causes crashes!"
+                        )
+                    else:
+                        errors.append(f"Node {nid} ({tid}): input pin {p['id']} missing 'key'")
+            
+            # Check output pins for keys (entry is exception)
+            for p in node.get("output_pin_list", []):
+                if "key" not in p and tid != "entry":
+                    errors.append(f"Node {nid} ({tid}): output pin {p['id']} missing 'key'")
+            
+            # Check show_choice_button output keys
+            if tid == "show_choice_button":
+                out_keys = [p.get("key", "") for p in node.get("output_pin_list", [])]
+                for i, k in enumerate(out_keys):
+                    expected = f"choice_{i+1}"
+                    if k and k != expected and k.startswith("route_"):
+                        errors.append(
+                            f"Node {nid} (show_choice_button): output key '{k}' should be '{expected}'. "
+                            "Using 'route_N' causes crashes! VNE expects 'choice_N'."
+                        )
+        
+        # Validate links
+        for link in links:
+            lid = link.get("id", "?")
+            out_pin = link.get("output_pin_id")
+            in_pin = link.get("input_pin_id")
+            if out_pin and out_pin not in all_pin_ids:
+                errors.append(f"Link {lid}: output_pin_id {out_pin} not found in any node")
+            if in_pin and in_pin not in all_pin_ids:
+                errors.append(f"Link {lid}: input_pin_id {in_pin} not found in any node")
+        
+        return {
+            "valid": len(errors) == 0,
+            "errors": errors,
+            "warnings": warnings,
+            "node_count": len(nodes),
+            "link_count": len(links),
+            "known_node_types": len(known_types) if known_types else 0,
+        }
+
+    def list_node_types(self) -> List[Dict]:
+        """Discover all available flow node type_ids and their pin schemas
+        by scanning application/node/builtin/."""
+        self._ensure_loaded()
+        return self._discover_node_types_detailed()
+
+    def _discover_node_types(self) -> set:
+        """Quick scan: return set of known type_ids."""
+        types = set()
+        self._ensure_loaded()
+        base = self._vne_path.parent if self._vne_path else Path(".")
+        node_dir = base / "application" / "node" / "builtin"
+        if not node_dir.exists():
+            return types
+        
+        for lua_file in node_dir.rglob("*.lua"):
+            try:
+                content = lua_file.read_text(encoding='utf-8-sig', errors='ignore')
+                # Extract type_id from Lua node definition
+                m = re.search(r'type_id\s*=\s*"([^"]+)"', content)
+                if m:
+                    types.add(m.group(1))
+            except Exception:
+                pass
+        return types
+
+    def _discover_node_types_detailed(self) -> List[Dict]:
+        """Detailed scan: return type_id, name, category, inputs, outputs."""
+        result = []
+        self._ensure_loaded()
+        base = self._vne_path.parent if self._vne_path else Path(".")
+        node_dir = base / "application" / "node" / "builtin"
+        if not node_dir.exists():
+            return result
+        
+        for lua_file in sorted(node_dir.rglob("*.lua")):
+            try:
+                content = lua_file.read_text(encoding='utf-8-sig', errors='ignore')
+                
+                # Extract type_id
+                m_type = re.search(r'type_id\s*=\s*"([^"]+)"', content)
+                if not m_type:
+                    continue
+                type_id = m_type.group(1)
+                
+                # Extract name (Chinese display name)
+                m_name = re.search(r'name\s*=\s*"([^"]+)"', content)
+                name = m_name.group(1) if m_name else type_id
+                
+                # Extract category
+                m_cat = re.search(r'category\s*=\s*"([^"]+)"', content)
+                category = m_cat.group(1) if m_cat else ""
+                
+                # Extract inputs (add_input calls)
+                inputs = []
+                for m in re.finditer(r'add_input\(\s*\{([^}]+)\}', content):
+                    pin_def = m.group(1)
+                    m_k = re.search(r'key\s*=\s*"([^"]+)"', pin_def)
+                    m_t = re.search(r'type_id\s*=\s*"([^"]+)"', pin_def)
+                    m_n = re.search(r'name\s*=\s*"([^"]+)"', pin_def)
+                    inputs.append({
+                        "key": m_k.group(1) if m_k else "(auto)",
+                        "type_id": m_t.group(1) if m_t else "?",
+                        "name": m_n.group(1) if m_n else "",
+                    })
+                
+                # Extract outputs (add_output calls)
+                outputs = []
+                for m in re.finditer(r'add_output\(\s*\{([^}]+)\}', content):
+                    pin_def = m.group(1)
+                    m_k = re.search(r'key\s*=\s*"([^"]+)"', pin_def)
+                    m_t = re.search(r'type_id\s*=\s*"([^"]+)"', pin_def)
+                    m_n = re.search(r'name\s*=\s*"([^"]+)"', pin_def)
+                    outputs.append({
+                        "key": m_k.group(1) if m_k else "(auto)",
+                        "type_id": m_t.group(1) if m_t else "?",
+                        "name": m_n.group(1) if m_n else "",
+                    })
+                
+                result.append({
+                    "type_id": type_id,
+                    "name": name,
+                    "category": category,
+                    "inputs": inputs,
+                    "outputs": outputs,
+                })
+            except Exception:
+                pass
+        
+        return result
+
 
 # ---------------------------------------------------------------------------
 # MCP HTTP/SSE Transport (TCP mode)
@@ -569,7 +846,7 @@ class MCPHTTPServer:
                 "protocolVersion": "2025-11-25",
                 "capabilities": {"tools": {}},
                 "serverInfo": {"name": self.mcp.name, "version": self.mcp.version},
-                "instructions": "VNE MCP Server — provides 11 tools for VoidNovelEngine projects. Use vne_project_info first to get an overview, vne_search for code lookup, vne_console_log for editor diagnostics.",
+                "instructions": "VNE MCP Server — provides 15 tools for VoidNovelEngine projects. Use vne_project_info first to get an overview, vne_list_node_types to see available flow nodes, vne_validate_flow before opening generated .flow files, vne_refresh_assets after creating files externally.",
             }
             msg_id = msg.get("id")
             return {"jsonrpc": "2.0", "id": msg_id, "result": result} if msg_id is not None else None
@@ -665,7 +942,7 @@ def create_server(project_path: str = None) -> MCPServer:
 
     project = VNEProject(project_path)
 
-    server = MCPServer(name="vne-mcp-server", version="1.1.0")
+    server = MCPServer(name="vne-mcp-server", version="1.2.0")
 
     # --- Tool: vne_project_info ---
     server.register_tool(
@@ -916,6 +1193,101 @@ def create_server(project_path: str = None) -> MCPServer:
         annotations={"readOnlyHint": True, "destructiveHint": False},
     )
 
+    # --- Tool: vne_refresh_assets (NEW in 1.2.0) ---
+    server.register_tool(
+        name="vne_refresh_assets",
+        description="Refresh the asset cache so newly created or modified files are visible without restarting the VNE editor. Call this after creating .vns, .flow, .meta files or modifying project.vne externally.",
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        handler=lambda args: [
+            {"type": "text", "text": json.dumps(
+                _handle_refresh(project), ensure_ascii=False, indent=2
+            )}
+        ],
+        annotations={"readOnlyHint": False, "destructiveHint": False},
+    )
+
+    # --- Tool: vne_register_asset (NEW in 1.2.0) ---
+    server.register_tool(
+        name="vne_register_asset",
+        description="Register a new asset file in the VNE project atomically: creates the .meta file, adds it to project.vne's asset registry, and optionally adds to open_flow_guid_list. Use this instead of manually editing project.vne.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Relative path to the asset file (e.g. 'flow/校园恋爱.flow')"
+                },
+                "type": {
+                    "type": "string",
+                    "description": "Asset type: flow, texture, audio, video, font, shader, style, ui, save_profile"
+                },
+                "guid": {
+                    "type": "string",
+                    "description": "Optional GUID. Auto-generated UUID if omitted."
+                },
+                "add_to_open_flows": {
+                    "type": "boolean",
+                    "description": "If true, also prepend to open_flow_guid_list (for flow type assets)"
+                },
+            },
+            "required": ["path", "type"],
+        },
+        handler=lambda args: [
+            {"type": "text", "text": json.dumps(
+                project.register_asset(
+                    relative_path=args["path"],
+                    asset_type=args["type"],
+                    guid=args.get("guid"),
+                    add_to_open_flows=args.get("add_to_open_flows", False),
+                ), ensure_ascii=False, indent=2
+            )}
+        ],
+        annotations={"readOnlyHint": False, "destructiveHint": True},
+    )
+
+    # --- Tool: vne_validate_flow (NEW in 1.2.0) ---
+    server.register_tool(
+        name="vne_validate_flow",
+        description="Validate a .flow file before opening it in the VNE editor. Checks for: valid JSON, correct pin keys (especially choice_N for show_choice_button), merge_flow input keys, missing pin keys, and broken link references. Use this after generating .flow files to prevent crashes.",
+        input_schema={
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Relative path to the .flow file (e.g. 'application/resources/flow/校园恋爱.flow')"
+                },
+            },
+            "required": ["path"],
+        },
+        handler=lambda args: [
+            {"type": "text", "text": json.dumps(
+                project.validate_flow(args["path"]), ensure_ascii=False, indent=2
+            )}
+        ],
+        annotations={"readOnlyHint": True, "destructiveHint": False},
+    )
+
+    # --- Tool: vne_list_node_types (NEW in 1.2.0) ---
+    server.register_tool(
+        name="vne_list_node_types",
+        description="List all available flow node type_ids with their pin schemas (inputs/outputs). Use this before generating .flow files to ensure correct pin keys and avoid crashes from wrong pin names.",
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        handler=lambda args: [
+            {"type": "text", "text": json.dumps(
+                project.list_node_types(), ensure_ascii=False, indent=2
+            )}
+        ],
+        annotations={"readOnlyHint": True, "destructiveHint": False},
+    )
+
     return server
 
 
@@ -1058,6 +1430,19 @@ def _handle_console_log(project: 'VNEProject', args: Dict) -> List[Dict]:
         "file_size": log_file.stat().st_size if log_file.exists() else 0,
         "entries": entries,
     }, ensure_ascii=False, indent=2)}]
+
+
+def _handle_refresh(project: 'VNEProject') -> Dict:
+    """Handle the vne_refresh_assets tool — clear cache for re-reading."""
+    project.refresh()
+    # Force re-read to confirm
+    info = project.get_info()
+    return {
+        "status": "refreshed",
+        "message": "Asset cache cleared. Project re-loaded.",
+        "total_assets": info.get("total_assets", 0),
+        "resource_counts": info.get("resource_counts", {}),
+    }
 
 
 # ---------------------------------------------------------------------------
