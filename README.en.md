@@ -21,6 +21,53 @@ MCP Server · Custom Nodes · Engine Patches · Scene Generator · VPak Packer
 
 ---
 
+## 📑 Navigation
+
+| Section | Description |
+|---------|-------------|
+| [✨ Features](#-features) | Capability overview |
+| [📦 Installation](#-installation) | Three install guides |
+| [🔧 Install 1: Tools](#-install-1-tools) | Deploy to VNE project |
+| [🔌 Install 2: MCP Clients](#-install-2-mcp-client-setup) | Cursor / Trae / Claude / Hermes |
+| [📚 Install 3: Skills](#-install-3-skills) | Hermes Agent skills |
+| [🏗️ Repo Structure](#-repo-structure) | Directory layout |
+
+---
+
+## ✨ Features
+
+Complete AI-assisted development toolkit for VoidNovelEngine:
+
+### 🔌 MCP Server — 16 AI Tools
+
+AI assistants can directly operate VNE projects:
+
+- **Project Info**: read config, Lua API reference, export settings
+- **Resources**: list/search/register assets, refresh cache
+- **Flow Graphs**: validate .flow files (crash prevention), list node types
+- **VPak**: encrypt and pack resources, read .vpak contents
+- **Debug**: real-time console logs, hot-reload custom nodes
+
+Works with **Cursor**, **Trae**, **Claude Desktop**, **Hermes Agent**, and all MCP-compatible clients.
+
+### 🧩 Custom Nodes
+
+`dialog_line` — merges "hide previous + play audio + show dialogue" into one node. 4 traditional nodes → 1.
+
+### 🔩 Engine Patches
+
+mcp_host.lua hot-reload patch — edit custom nodes without restarting VNE, triggered by AI tool.
+
+### 📚 Skill Library
+
+4 Hermes Agent skills injecting VNE domain knowledge:
+- `void-novel-engine` — architecture, API, top 10 pitfalls
+- `vne-flow-patterns` — node connection patterns & layout rules
+- `vne-scene-recipes` — campus romance scene templates
+- `vne-custom-extensions` — custom node development guide
+
+---
+
 ## Overview
 
 | Component | Description |
