@@ -87,7 +87,7 @@ class MCPServer:
             "protocolVersion": "2025-11-25",
             "capabilities": {"tools": {}},
             "serverInfo": {"name": self.name, "version": self.version},
-            "instructions": "VNE MCP Server — provides 15 tools for VoidNovelEngine projects. Use vne_project_info first to get an overview, vne_list_node_types to see available flow nodes, vne_validate_flow before opening generated .flow files, vne_refresh_assets after creating files externally.",
+            "instructions": "VNE MCP Server — provides 16 tools for VoidNovelEngine projects. Use vne_project_info first to get an overview, vne_list_node_types to see available flow nodes, vne_validate_flow before opening generated .flow files, vne_refresh_assets after creating files externally, vne_reload_custom_nodes after editing custom node .lua files to hot-reload without restarting VNE.",
         }
         self._send_response(msg.get("id"), result)
 
@@ -882,7 +882,7 @@ class MCPHTTPServer:
                 "protocolVersion": "2025-11-25",
                 "capabilities": {"tools": {}},
                 "serverInfo": {"name": self.mcp.name, "version": self.mcp.version},
-                "instructions": "VNE MCP Server — provides 15 tools for VoidNovelEngine projects. Use vne_project_info first to get an overview, vne_list_node_types to see available flow nodes, vne_validate_flow before opening generated .flow files, vne_refresh_assets after creating files externally.",
+                "instructions": "VNE MCP Server — provides 16 tools for VoidNovelEngine projects. Use vne_project_info first to get an overview, vne_list_node_types to see available flow nodes, vne_validate_flow before opening generated .flow files, vne_refresh_assets after creating files externally, vne_reload_custom_nodes after editing custom node .lua files to hot-reload without restarting VNE.",
             }
             msg_id = msg.get("id")
             return {"jsonrpc": "2.0", "id": msg_id, "result": result} if msg_id is not None else None
@@ -1324,6 +1324,23 @@ def create_server(project_path: str = None) -> MCPServer:
         annotations={"readOnlyHint": True, "destructiveHint": False},
     )
 
+    # --- Tool: vne_reload_custom_nodes (NEW in 1.3.0) ---
+    server.register_tool(
+        name="vne_reload_custom_nodes",
+        description="Hot-reload custom node definitions without restarting VNE. Writes a trigger flag file that mcp_host.lua detects, which then calls definition_loader.load() to reload all node/pin definitions. Use after modifying files in application/node/custom/.",
+        input_schema={
+            "type": "object",
+            "properties": {},
+            "required": [],
+        },
+        handler=lambda args: [
+            {"type": "text", "text": json.dumps(
+                _handle_reload_custom(project), ensure_ascii=False, indent=2
+            )}
+        ],
+        annotations={"readOnlyHint": False, "destructiveHint": False},
+    )
+
     return server
 
 
@@ -1479,6 +1496,59 @@ def _handle_refresh(project: 'VNEProject') -> Dict:
         "total_assets": info.get("total_assets", 0),
         "resource_counts": info.get("resource_counts", {}),
     }
+
+
+def _handle_reload_custom(project: 'VNEProject') -> Dict:
+    """Handle the vne_reload_custom_nodes tool — trigger hot-reload of custom node definitions.
+    
+    Writes a flag file that mcp_host.lua detects in its update loop.
+    The Lua side calls definition_loader.load() and writes a result file.
+    """
+    base = project._vne_path.parent if project._vne_path else Path(os.getcwd())
+    flag_dir = base / "save" / "temp"
+    flag_file = flag_dir / "_reload_custom_nodes.flag"
+    result_file = flag_dir / "_reload_custom_nodes.result"
+
+    # Ensure directory exists
+    flag_dir.mkdir(parents=True, exist_ok=True)
+
+    # Clean up any stale result
+    if result_file.exists():
+        result_file.unlink()
+
+    # Write trigger flag
+    flag_file.write_text("reload", encoding="utf-8")
+
+    # Wait for VNE to process (up to 10 seconds, polling every 200ms)
+    max_wait = 10.0
+    interval = 0.2
+    elapsed = 0.0
+    result = None
+    while elapsed < max_wait:
+        time.sleep(interval)
+        elapsed += interval
+        if result_file.exists():
+            result = result_file.read_text(encoding="utf-8").strip()
+            result_file.unlink()
+            break
+
+    if result is None:
+        return {
+            "status": "timeout",
+            "message": f"等待 {max_wait:.0f} 秒后 VNE 仍未响应。请确认 VNE 编辑器已打开并运行。",
+            "hint": "如果 VNE 正在运行，尝试重启 VNE 以加载最新的 mcp_host.lua。"
+        }
+
+    if result == "success":
+        return {
+            "status": "success",
+            "message": "自定义节点已热重载。VNE 无需重启。"
+        }
+    else:
+        return {
+            "status": "error",
+            "message": f"VNE 热重载失败: {result}"
+        }
 
 
 # ---------------------------------------------------------------------------
