@@ -573,15 +573,34 @@ class VNEProject:
                             "Using 'route_N' causes crashes! VNE expects 'choice_N'."
                         )
         
-        # Validate links
+        # Validate links — also detect non-integer pin IDs (common bug)
         for link in links:
             lid = link.get("id", "?")
             out_pin = link.get("output_pin_id")
             in_pin = link.get("input_pin_id")
-            if out_pin and out_pin not in all_pin_ids:
+            
+            if not isinstance(out_pin, int):
+                errors.append(
+                    f"Link {lid}: output_pin_id is {type(out_pin).__name__}, expected int. "
+                    "Did you pass a dict (e.g. output_map) instead of a pin ID (e.g. output_map['out'])?"
+                )
+            elif out_pin not in all_pin_ids:
                 errors.append(f"Link {lid}: output_pin_id {out_pin} not found in any node")
-            if in_pin and in_pin not in all_pin_ids:
+            
+            if not isinstance(in_pin, int):
+                errors.append(
+                    f"Link {lid}: input_pin_id is {type(in_pin).__name__}, expected int. "
+                    "Did you pass a dict (e.g. input_map) instead of a pin ID (e.g. input_map['in'])?"
+                )
+            elif in_pin not in all_pin_ids:
                 errors.append(f"Link {lid}: input_pin_id {in_pin} not found in any node")
+        
+        # Performance warning: VNE editor struggles with >80 nodes
+        if len(nodes) > 80:
+            warnings.append(
+                f"Flow has {len(nodes)} nodes — VNE editor may crash or freeze when opening. "
+                "Limit: 80 nodes per .flow file. Split into multiple smaller scenes using switch_scene."
+            )
         
         return {
             "valid": len(errors) == 0,
@@ -942,7 +961,7 @@ def create_server(project_path: str = None) -> MCPServer:
 
     project = VNEProject(project_path)
 
-    server = MCPServer(name="vne-mcp-server", version="1.2.0")
+    server = MCPServer(name="vne-mcp-server", version="1.2.1")
 
     # --- Tool: vne_project_info ---
     server.register_tool(
