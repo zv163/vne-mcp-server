@@ -2,11 +2,6 @@
   dialog_line v3 — 合并对话节点
   一个节点 = 隐藏上一句(淡出) + 播放音频(可选) + 显示当前对话(淡入)
   链式连接: nodeA.dialog_box → nodeB.prev_dialog
-  大幅减少节点数，消除独立的 hide_dialog_box 和 play_audio 节点
-  
-  v3 修复:
-  - 字体使用 GlobalContext.font_wrapper_sdl（而非工厂函数）
-  - v2: 音频模块名修正、hide()替代remove_object
 ]]
 
 local Common = require("application.framework.builtin_node_common")
@@ -45,17 +40,19 @@ return Common.make_definition({
     builder:add_output({key = "out", type_id = "flow"})
     builder:add_output({key = "dialog_box", type_id = "object", name = "对话框", options = {object_type = "dialog_box"}})
 
-    local object_id <const> = string.format("dialog_line_%d", node._id:get())
+    local object_id = string.format("dialog_line_%d", node._id:get())
 
     node.on_execute = function(self, scene)
-        -- 1. 隐藏上一句的对话框（淡出动画，0.05秒）
-        -- 用 try_check_input：第一个节点无上一句时返回 nil，不报错
+        -- 1. 隐藏上一句
         local prev_db = NodeRuntimeHelper.try_check_input(self, "prev_dialog", "object")
         if prev_db and type(prev_db) == "table" and prev_db.hide then
             prev_db:hide(0.05)
         end
 
-        -- 2. 播放音频（可选，无音频时静默跳过）
+        -- 2. 停止上一句的音频（无论当前有无音频都要停）
+        AudioPlaybackManager.stop_all(0)
+
+        -- 3. 播放当前音频（可选）
         local audio_ref = NodeRuntimeHelper.try_check_input(self, "audio", "audio")
         if audio_ref then
             local vol = math.max(0, math.min(1, NodeRuntimeHelper.check_float(self, "volume") or 0.8))
@@ -66,25 +63,20 @@ return Common.make_definition({
             })
         end
 
-        -- 3. 显示当前对话（使用与 show_dialog_box 一致的 Billboard API）
+        -- 3. 显示当前对话
         local role_text = NodeRuntimeHelper.check_string(self, "role_text") or ""
         local dialogue_text = NodeRuntimeHelper.check_string(self, "dialogue_text") or ""
 
         local dialog_box = Billboard.new(
-            role_text,                                      -- name
-            dialogue_text,                                  -- dialogue
-            140,                                            -- x
-            760,                                            -- y
-            1640,                                           -- width
-            default_font,                                   -- role_font (FontWrapper)
-            default_font,                                   -- dialogue_font
-            convert_color(imgui.ImVec4(1, 0.9, 0.65, 1)),  -- role_color (gold, SDL_Color)
-            convert_color(imgui.ImVec4(0.96, 0.96, 0.96, 1)), -- dialogue_color (white)
-            convert_color(imgui.ImVec4(0.06, 0.09, 0.13, 0.86)), -- bg_color (dark)
-            0.2,                                            -- fade_in time
-            nil,                                            -- background image
-            RuntimeLayout.scale_font_size(28),              -- role font size
-            RuntimeLayout.scale_font_size(25)               -- dialogue font size
+            role_text, dialogue_text,
+            140, 760, 1640,
+            default_font, default_font,
+            convert_color(imgui.ImVec4(1, 0.9, 0.65, 1)),
+            convert_color(imgui.ImVec4(0.96, 0.96, 0.96, 1)),
+            convert_color(imgui.ImVec4(0.06, 0.09, 0.13, 0.86)),
+            0.2, nil,
+            RuntimeLayout.scale_font_size(28),
+            RuntimeLayout.scale_font_size(25)
         )
         scene:add_object(dialog_box, object_id, 50)
         NodeRuntimeHelper.set_output(self, "dialog_box", dialog_box)
