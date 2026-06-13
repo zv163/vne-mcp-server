@@ -595,6 +595,23 @@ class VNEProject:
             elif in_pin not in all_pin_ids:
                 errors.append(f"Link {lid}: input_pin_id {in_pin} not found in any node")
         
+        # Pin schema validation — catch missing required pins
+        for node in nodes:
+            tid = node.get("type_id","")
+            in_keys = [p.get("key","") for p in node.get("input_pin_list",[])]
+            out_keys = [p.get("key","") for p in node.get("output_pin_list",[])]
+            psv = node.get("pin_schema_version", 1)
+            nid = node.get("id","?")
+            
+            if tid == "add_foreground":
+                if psv != 2:
+                    errors.append(f"Node {nid} (add_foreground): pin_schema_version={psv}, must be 2. Missing shader pin or wrong version causes '纹理未设置' runtime error.")
+                if "shader" not in in_keys:
+                    errors.append(f"Node {nid} (add_foreground): missing 'shader' input pin. This causes '纹理未设置' runtime error.")
+            if tid == "switch_background":
+                if "shader" not in in_keys:
+                    errors.append(f"Node {nid} (switch_background): missing 'shader' input pin.")
+        
         # Performance warning: VNE editor struggles with >80 nodes
         if len(nodes) > 80:
             warnings.append(
