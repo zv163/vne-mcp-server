@@ -628,6 +628,29 @@ If VNE crashes on startup, reset `current_graph_flow_guid` and `current_flow_gui
 ## Reference Files
 
 - `references/vpak-spec.md` — Complete VPak binary format specification
-- `references/mcp-api.md` — Full VNE MCP server API reference (15 tools, v1.2.0)
+- `references/mcp-api.md` — Full VNE MCP server API reference (16 tools, v1.3.0)
 - `references/flow-generation.md` — .flow JSON format guide: node schemas, pin keys, crash pitfalls, canvas limits
 - `scripts/gen_flow_template.py` — Minimal .flow generator skeleton to copy and extend
+
+## 🔟 十大陷阱 (Top 10 Pitfalls)
+
+在校园恋爱视觉小说项目中反复验证的引擎陷阱，每次生成 .flow 前必须检查。
+
+| # | 陷阱 | 症状 | 正确做法 |
+|---|------|------|---------|
+| 1 | `show_choice_button` 输出 key = `route_1` | 点击后崩溃/无响应 | 用 `choice_1`~`choice_5`，不是 `route_1` |
+| 2 | `add_foreground` 缺 `shader` pin | 前景图不显示 | `pin_schema_version`=2，必须含 7 个输入 pin（含 shader） |
+| 3 | `merge_flow` 输入 pin 缺 key | 编辑器崩溃 | 避免使用此节点；用 `switch_scene` 拆分场景代替合并 |
+| 4 | 单 .flow 超 80 节点 | 编辑器卡死/黑屏 | 拆分为多场景（≤60 节点安全），用 `switch_scene` 连接 |
+| 5 | `show_dialog_box` 不会自动替换 | 旧对话框不消失 | 每个 show 后跟 `hide_dialog_box`（fade=0.05），通过 `dialog_box` object pin 链接 |
+| 6 | 对话框隐藏无链接 | 对话框残留 | `hide(fade=0.05)` + 下一个 `show_dialog_box` 必须通过 `dialog_box` 引脚连接 |
+| 7 | 同场景换背景 | 节点暴涨 | 换背景 = 开新场景 `switch_scene`，每场景 < 60 节点 |
+| 8 | 分支选择后 pin key 不匹配 | 点击后无反应 | `show_choice_button` 输出 key 是 `choice_1`，`choice_2`...不是 `branch_1` |
+| 9 | link 的 `pin_id` 是 string | 编辑器直接崩溃 | `pin_id` 必须是 int（JSON number），不能是字符串 "1" |
+| 10 | 启动崩溃（无报错） | VNE 打不开 | 删除 `project.vne` 中 `current_graph_flow_guid`（指向大文件导致） |
+
+**dialog_line 节点陷阱**（v1.3.0）:
+- 所有可选引脚（`prev_dialog`、`audio`）必须用 `try_check_input` 而非 `check_input`
+- 字体不能传工厂函数，必须用 `GlobalContext.font_wrapper_sdl`
+- 音频模块是 `AudioPlaybackManager`，不是 `AudioManager`
+- 隐藏上句用 `Billboard:hide(0.05)`，不是 `scene:remove_object()`
