@@ -37,7 +37,7 @@ from typing import Any, Dict, List, Optional
 class MCPServer:
     """Minimal MCP JSON-RPC server over stdio."""
 
-    def __init__(self, name: str = "vne-mcp-server", version: str = "1.0.0"):
+    def __init__(self, name: str = "vne-mcp-server", version: str = "1.1.0"):
         self.name = name
         self.version = version
         self.tools: Dict[str, Dict] = {}
@@ -84,9 +84,10 @@ class MCPServer:
 
     def _handle_initialize(self, msg):
         result = {
-            "protocolVersion": "2024-11-05",
+            "protocolVersion": "2025-11-25",
             "capabilities": {"tools": {}},
             "serverInfo": {"name": self.name, "version": self.version},
+            "instructions": "VNE MCP Server — provides 11 tools for VoidNovelEngine projects. Use vne_project_info first to get an overview, vne_search for code lookup, vne_console_log for editor diagnostics.",
         }
         self._send_response(msg.get("id"), result)
 
@@ -565,9 +566,10 @@ class MCPHTTPServer:
         # For TCP mode, we collect the response manually
         if method == "initialize":
             result = {
-                "protocolVersion": "2024-11-05",
+                "protocolVersion": "2025-11-25",
                 "capabilities": {"tools": {}},
                 "serverInfo": {"name": self.mcp.name, "version": self.mcp.version},
+                "instructions": "VNE MCP Server — provides 11 tools for VoidNovelEngine projects. Use vne_project_info first to get an overview, vne_search for code lookup, vne_console_log for editor diagnostics.",
             }
             msg_id = msg.get("id")
             return {"jsonrpc": "2.0", "id": msg_id, "result": result} if msg_id is not None else None
@@ -663,7 +665,7 @@ def create_server(project_path: str = None) -> MCPServer:
 
     project = VNEProject(project_path)
 
-    server = MCPServer(name="vne-mcp-server", version="1.0.0")
+    server = MCPServer(name="vne-mcp-server", version="1.1.0")
 
     # --- Tool: vne_project_info ---
     server.register_tool(
