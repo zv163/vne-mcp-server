@@ -9,13 +9,81 @@
 
 # VNE MCP Server
 
-**VoidNovelEngine 的 MCP（模型上下文协议）服务器。** 让 AI 助手（Claude、GPT、Cursor 等）可以直接读取、搜索、打包、调试 VNE 项目。11 个工具，纯 Python 标准库实现，零外部依赖。
-
-支持两种传输模式：**Stdio**（Claude Desktop / Cursor 等 MCP 客户端）和 **TCP/HTTP SSE**（嵌入 VNE 编辑器内运行）。
+**VoidNovelEngine 的 MCP（模型上下文协议）服务器。** 让 AI 助手可以读取、搜索、打包、调试 VNE 项目。11 个工具，纯 Python 标准库，零外部依赖。
 
 ---
 
-## 11 个工具
+## 目录
+
+- [📦 安装与文件放置](#-安装与文件放置)
+- [🛠 11 个工具](#-11-个工具)
+- [🚀 快速开始](#-快速开始)
+- [🔧 客户端配置](#-客户端配置)
+  - [Claude Desktop](#claude-desktop)
+  - [Cursor / Windsurf](#cursor--windsurf)
+  - [Hermes Agent](#hermes-agent)
+  - [通用 MCP 客户端](#通用-mcp-客户端)
+- [🔗 TCP 模式与编辑器集成](#-tcp-模式与-vne-编辑器集成)
+- [🔐 VPak 集成](#-vpak-集成)
+- [📁 文件结构](#-文件结构)
+- [📋 环境要求](#-环境要求)
+- [🔗 相关链接](#-相关链接)
+
+---
+
+## 📦 安装与文件放置
+
+### 文件说明
+
+本仓库包含 **两个 Python 文件**，缺一不可：
+
+| 文件 | 作用 | 是否必需 |
+|------|------|:---:|
+| `vne_mcp_server.py` | MCP 服务器主程序（11 个工具） | ✓ 必需 |
+| `vpak.py` | VPak 打包/解包模块 | ✓ 必需 |
+
+`vne_mcp_server.py` 的 `vne_pack_resources` 和 `vne_read_vpak` 工具需要调用 `vpak.py`，因此 **两个文件必须放在同一目录下**。
+
+### 安装步骤
+
+```bash
+# 1. 克隆仓库到本地（推荐放在用户目录下）
+git clone https://github.com/zv163/vne-mcp-server.git ~/vne-mcp-server
+
+# 2. 确认文件都在
+ls ~/vne-mcp-server/
+# 输出: vne_mcp_server.py  vpak.py  README.md  LICENSE
+
+# 3. 确认 Python 版本（3.8+）
+python3 --version
+
+# 4. 测试是否正常工作
+python3 ~/vne-mcp-server/vne_mcp_server.py --list-tools
+```
+
+> **路径建议：** 放在 `~/vne-mcp-server/` 或任意固定路径即可。不要放在 VNE 项目内部——这是一个独立工具，可以同时服务于多个 VNE 项目。
+
+### 目录结构总览
+
+```
+~/vne-mcp-server/              ← 推荐安装位置（用户目录）
+├── vne_mcp_server.py          ← MCP 服务器主程序
+├── vpak.py                    ← VPak 打包模块（必须在同目录）
+├── README.md / .en.md / .ja.md
+└── LICENSE
+
+/path/to/VoidNovelEngine/      ← 你的 VNE 项目（任意位置）
+├── project.vne
+├── application/
+│   ├── resources/
+│   ├── framework/
+│   └── scene/
+└── save/diagnostics/
+```
+
+---
+
+## 🛠 11 个工具
 
 | # | 工具名 | 功能 | 只读 |
 |---|--------|------|:----:|
@@ -33,32 +101,30 @@
 
 ---
 
-## 快速开始
+## 🚀 快速开始
 
 ```bash
-# 测试：查看项目信息
-python vne_mcp_server.py --project-path /path/to/VoidNovelEngine --info
+# 查看项目信息
+python3 ~/vne-mcp-server/vne_mcp_server.py --project-path /path/to/VoidNovelEngine --info
 
-# 测试：列出所有纹理资源
-python vne_mcp_server.py --project-path /path/to/VoidNovelEngine --resources texture
+# 列出所有纹理资源
+python3 ~/vne-mcp-server/vne_mcp_server.py --project-path /path/to/VoidNovelEngine --resources texture
 
-# 测试：查看所有可用工具
-python vne_mcp_server.py --list-tools
+# 查看所有可用工具
+python3 ~/vne-mcp-server/vne_mcp_server.py --list-tools
 ```
 
-### Stdio 模式（默认）
+### Stdio 模式（默认，用于 MCP 客户端）
 
 ```bash
-python vne_mcp_server.py --project-path /path/to/VoidNovelEngine
+python3 ~/vne-mcp-server/vne_mcp_server.py --project-path /path/to/VoidNovelEngine
 ```
 
 ### TCP/HTTP 模式（嵌入 VNE 编辑器）
 
 ```bash
-python vne_mcp_server.py --project-path /path/to/VoidNovelEngine --port 8765
+python3 ~/vne-mcp-server/vne_mcp_server.py --project-path /path/to/VoidNovelEngine --port 8765
 ```
-
-启动后可用端点：
 
 | 端点 | 用途 |
 |------|------|
@@ -68,7 +134,9 @@ python vne_mcp_server.py --project-path /path/to/VoidNovelEngine --port 8765
 
 ---
 
-## 客户端配置
+## 🔧 客户端配置
+
+> **注意：** 以下示例中的 `/path/to/vne-mcp-server/` 需要替换为你的实际安装路径（如 `~/vne-mcp-server`）。
 
 ### Claude Desktop
 
@@ -78,9 +146,9 @@ python vne_mcp_server.py --project-path /path/to/VoidNovelEngine --port 8765
 {
   "mcpServers": {
     "vne": {
-      "command": "python",
+      "command": "python3",
       "args": [
-        "/path/to/vne-mcp-server/vne_mcp_server.py",
+        "/home/你的用户名/vne-mcp-server/vne_mcp_server.py",
         "--project-path",
         "/path/to/VoidNovelEngine"
       ]
@@ -96,17 +164,22 @@ python vne_mcp_server.py --project-path /path/to/VoidNovelEngine --port 8765
 ### Hermes Agent
 
 ```bash
-# 创建包装脚本
+# 1. 创建包装脚本
 cat > ~/.hermes/scripts/vne-mcp-wrapper.sh << 'EOF'
 #!/bin/bash
-exec python3 /path/to/vne-mcp-server/vne_mcp_server.py \
-  --project-path /path/to/VoidNovelEngine "$@"
+exec python3 ~/vne-mcp-server/vne_mcp_server.py \
+  --project-path /mnt/d/A-Game/VoidNovelEngine "$@"
 EOF
 chmod +x ~/.hermes/scripts/vne-mcp-wrapper.sh
 
-# 注册到 Hermes
+# 2. 注册到 Hermes
 echo "y" | hermes mcp add vne --command ~/.hermes/scripts/vne-mcp-wrapper.sh
+
+# 3. 验证
+hermes mcp list | grep vne
 ```
+
+> **注意：** 如果 `hermes mcp add` 报错说 `--project-path` 无法识别，就用包装脚本的方式（如上），不要让 hermes 直接传 `--project-path` 参数。
 
 ### 通用 MCP 客户端
 
@@ -114,8 +187,12 @@ echo "y" | hermes mcp add vne --command ~/.hermes/scripts/vne-mcp-wrapper.sh
 {
   "mcpServers": {
     "vne": {
-      "command": "python",
-      "args": ["vne_mcp_server.py", "--project-path", "/path/to/VoidNovelEngine"]
+      "command": "python3",
+      "args": [
+        "/path/to/vne-mcp-server/vne_mcp_server.py",
+        "--project-path",
+        "/path/to/VoidNovelEngine"
+      ]
     }
   }
 }
@@ -123,17 +200,17 @@ echo "y" | hermes mcp add vne --command ~/.hermes/scripts/vne-mcp-wrapper.sh
 
 ---
 
-## TCP 模式与 VNE 编辑器集成
+## 🔗 TCP 模式与 VNE 编辑器集成
 
-VNE 编辑器内置了 Lua MCP 宿主 (`mcp_host.lua`)，启动时自动：
+VNE 编辑器内置 Lua MCP 宿主 (`mcp_host.lua`)，启动时自动：
 
-1. 在 Windows 上自动发现 Python 路径
-2. 启动 `vne_mcp_server.py --port 8765` 作为子进程
-3. 监听 stdout 等待 `VNE_MCP_READY` 信号
-4. 建立 SSE 连接接收实时事件
-5. 将 `LogManager.log()` 输出桥接到 `save/diagnostics/mcp_console.jsonl`
+1. 发现 Python 路径
+2. 启动 `vne_mcp_server.py --port 8765` 子进程
+3. 等待 `VNE_MCP_READY` 信号
+4. 建立 SSE 连接
+5. 桥接 `LogManager.log()` → `save/diagnostics/mcp_console.jsonl`
 
-这使得 **`vne_console_log`** 工具可以近乎实时地让 AI 读取 VNE 编辑器控制台日志。
+这使得 **`vne_console_log`** 工具可以让 AI 近乎实时地读取编辑器控制台。
 
 ```
 ┌─────────────────────────┐
@@ -174,24 +251,22 @@ VNE 编辑器内置了 Lua MCP 宿主 (`mcp_host.lua`)，启动时自动：
 
 ---
 
-## VPak 集成
+## 🔐 VPak 集成
 
-两个工具与 VPak 加密归档交互：
-
-- **`vne_pack_resources`** — 调用 `vpak.py pack` 子进程（XOR 加密，可选 zlib 压缩）
-- **`vne_read_vpak`** — 直接导入 `vpak.py` 模块列出 / 提取文件
+- **`vne_pack_resources`** — 调用 `vpak.py pack` 子进程（XOR 加密，可选 zlib）
+- **`vne_read_vpak`** — 导入 `vpak.py` 模块列出 / 提取文件
 
 `vpak.py` 也可独立使用：
 
 ```bash
-# 打包资源
-python vpak.py pack application/resources application/resources.vpak --key my-key
+# 打包
+python3 ~/vne-mcp-server/vpak.py pack  resources/  resources.vpak --key my-key
 
-# 列出归档内容
-python vpak.py list application/resources.vpak
+# 列出
+python3 ~/vne-mcp-server/vpak.py list  resources.vpak
 
-# 提取文件
-python vpak.py extract application/resources.vpak texture/icon.png --key my-key
+# 提取
+python3 ~/vne-mcp-server/vpak.py extract  resources.vpak  texture/icon.png --key my-key
 ```
 
 ### VPak 格式
@@ -203,13 +278,13 @@ python vpak.py extract application/resources.vpak texture/icon.png --key my-key
 | Flags | 4 字节 | bit0=加密, bit1=压缩 |
 | File Count | 4 字节 | uint32 LE |
 | File Table | N×32 字节 | 路径哈希 + 偏移 + 大小 |
-| Data | N 字节 | 拼接文件数据 |
+| Data | N 字节 | 文件数据 |
 
 加密：XOR 密码，256 字节旋转密钥（SHA256 + 确定性置乱派生）
 
 ---
 
-## 文件结构
+## 📁 文件结构
 
 ```
 vne-mcp-server/
@@ -223,14 +298,14 @@ vne-mcp-server/
 
 ---
 
-## 环境要求
+## 📋 环境要求
 
-- **Python 3.8+** — 仅使用标准库，无需安装任何第三方包
+- **Python 3.8+** — 纯标准库，无需 pip install
 - VoidNovelEngine 项目（含 `project.vne`）
 
 ---
 
-## 相关链接
+## 🔗 相关链接
 
 - [VoidNovelEngine](https://github.com/VoidmatrixHeathcliff/VoidNovelEngine) — 可视化小说引擎
 - [Model Context Protocol](https://modelcontextprotocol.io) — MCP 协议规范
