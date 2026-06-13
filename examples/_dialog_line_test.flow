@@ -1,0 +1,316 @@
+{
+  "max_uid": 53,
+  "link_pool": [
+    {
+      "id": 7,
+      "output_pin_id": 2,
+      "input_pin_id": 4
+    },
+    {
+      "id": 17,
+      "output_pin_id": 6,
+      "input_pin_id": 9
+    },
+    {
+      "id": 27,
+      "output_pin_id": 15,
+      "input_pin_id": 19
+    },
+    {
+      "id": 28,
+      "output_pin_id": 16,
+      "input_pin_id": 20
+    },
+    {
+      "id": 38,
+      "output_pin_id": 25,
+      "input_pin_id": 30
+    },
+    {
+      "id": 39,
+      "output_pin_id": 26,
+      "input_pin_id": 31
+    },
+    {
+      "id": 43,
+      "output_pin_id": 36,
+      "input_pin_id": 41
+    }
+  ],
+  "node_pool": [
+    {
+      "id": 1,
+      "type_id": "entry",
+      "position": {
+        "x": 0,
+        "y": 0
+      },
+      "pin_schema_version": 1,
+      "input_pin_list": [],
+      "output_pin_list": [
+        {
+          "id": 2,
+          "type_id": "flow",
+          "is_output": true,
+          "key": "out"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type_id": "set_style",
+      "position": {
+        "x": 200,
+        "y": 0
+      },
+      "pin_schema_version": 1,
+      "input_pin_list": [
+        {
+          "id": 4,
+          "type_id": "flow",
+          "is_output": false,
+          "key": "in"
+        },
+        {
+          "id": 5,
+          "type_id": "style",
+          "is_output": false,
+          "key": "style",
+          "val": {
+            "guid": "d3abd178-5dd8-443d-8145-3b91e9ef7671",
+            "path_hint": "style/main.style"
+          }
+        }
+      ],
+      "output_pin_list": [
+        {
+          "id": 6,
+          "type_id": "flow",
+          "is_output": true,
+          "key": "out"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type_id": "dialog_line",
+      "position": {
+        "x": 460,
+        "y": 0
+      },
+      "pin_schema_version": 1,
+      "input_pin_list": [
+        {
+          "id": 9,
+          "type_id": "flow",
+          "is_output": false,
+          "key": "in"
+        },
+        {
+          "id": 10,
+          "type_id": "object",
+          "is_output": false,
+          "key": "prev_dialog"
+        },
+        {
+          "id": 11,
+          "type_id": "string",
+          "is_output": false,
+          "key": "role_text",
+          "val": "张晨"
+        },
+        {
+          "id": 12,
+          "type_id": "string",
+          "is_output": false,
+          "key": "dialogue_text",
+          "val": "你好，这是第一句对话。 "
+        },
+        {
+          "id": 13,
+          "type_id": "audio",
+          "is_output": false,
+          "key": "audio"
+        },
+        {
+          "id": 14,
+          "type_id": "float",
+          "is_output": false,
+          "key": "volume",
+          "val": 0.5
+        }
+      ],
+      "output_pin_list": [
+        {
+          "id": 15,
+          "type_id": "flow",
+          "is_output": true,
+          "key": "out"
+        },
+        {
+          "id": 16,
+          "type_id": "object",
+          "is_output": true,
+          "key": "dialog_box"
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "type_id": "dialog_line",
+      "position": {
+        "x": 460,
+        "y": 60
+      },
+      "pin_schema_version": 1,
+      "input_pin_list": [
+        {
+          "id": 19,
+          "type_id": "flow",
+          "is_output": false,
+          "key": "in"
+        },
+        {
+          "id": 20,
+          "type_id": "object",
+          "is_output": false,
+          "key": "prev_dialog"
+        },
+        {
+          "id": 21,
+          "type_id": "string",
+          "is_output": false,
+          "key": "role_text",
+          "val": "小美"
+        },
+        {
+          "id": 22,
+          "type_id": "string",
+          "is_output": false,
+          "key": "dialogue_text",
+          "val": "第二句——前面那句应该消失了！"
+        },
+        {
+          "id": 23,
+          "type_id": "audio",
+          "is_output": false,
+          "key": "audio",
+          "val": {
+            "guid": "c50ae6de-eaa2-41e8-b935-845b4aceaad2",
+            "path_hint": "audio/bgm.wav"
+          }
+        },
+        {
+          "id": 24,
+          "type_id": "float",
+          "is_output": false,
+          "key": "volume",
+          "val": 0.3
+        }
+      ],
+      "output_pin_list": [
+        {
+          "id": 25,
+          "type_id": "flow",
+          "is_output": true,
+          "key": "out"
+        },
+        {
+          "id": 26,
+          "type_id": "object",
+          "is_output": true,
+          "key": "dialog_box"
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "type_id": "dialog_line",
+      "position": {
+        "x": 460,
+        "y": 120
+      },
+      "pin_schema_version": 1,
+      "input_pin_list": [
+        {
+          "id": 30,
+          "type_id": "flow",
+          "is_output": false,
+          "key": "in"
+        },
+        {
+          "id": 31,
+          "type_id": "object",
+          "is_output": false,
+          "key": "prev_dialog"
+        },
+        {
+          "id": 32,
+          "type_id": "string",
+          "is_output": false,
+          "key": "role_text",
+          "val": "林雪"
+        },
+        {
+          "id": 33,
+          "type_id": "string",
+          "is_output": false,
+          "key": "dialogue_text",
+          "val": "第三句——前两句都消失了。这个节点自带音频和隐藏。"
+        },
+        {
+          "id": 34,
+          "type_id": "audio",
+          "is_output": false,
+          "key": "audio"
+        },
+        {
+          "id": 35,
+          "type_id": "float",
+          "is_output": false,
+          "key": "volume",
+          "val": 0.5
+        }
+      ],
+      "output_pin_list": [
+        {
+          "id": 36,
+          "type_id": "flow",
+          "is_output": true,
+          "key": "out"
+        },
+        {
+          "id": 37,
+          "type_id": "object",
+          "is_output": true,
+          "key": "dialog_box"
+        }
+      ]
+    },
+    {
+      "id": 40,
+      "type_id": "switch_scene",
+      "position": {
+        "x": 460,
+        "y": 240
+      },
+      "pin_schema_version": 1,
+      "input_pin_list": [
+        {
+          "id": 41,
+          "type_id": "flow",
+          "is_output": false,
+          "key": "in"
+        },
+        {
+          "id": 42,
+          "type_id": "string",
+          "is_output": false,
+          "key": "target",
+          "val": "flow/主菜单.flow"
+        }
+      ],
+      "output_pin_list": []
+    }
+  ]
+}

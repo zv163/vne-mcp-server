@@ -1,160 +1,184 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.8+-blue?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.8+">
   <img src="https://img.shields.io/badge/MCP-2025--11--25-green?style=for-the-badge" alt="MCP">
-  <img src="https://img.shields.io/badge/Version-1.2.0-purple?style=for-the-badge" alt="v1.2.0">
+  <img src="https://img.shields.io/badge/Version-1.3.0-purple?style=for-the-badge" alt="v1.3.0">
   <img src="https://img.shields.io/badge/License-MIT-brightgreen?style=for-the-badge" alt="License: MIT">
-  <img src="https://img.shields.io/badge/Deps-Zero-orange?style=for-the-badge" alt="Zero Dependencies">
-  <a href="README.md"><img src="https://img.shields.io/badge/Lang-中文-red?style=for-the-badge" alt="中文"></a>
-  <a href="README.ja.md"><img src="https://img.shields.io/badge/Lang-日本語-blue?style=for-the-badge" alt="日本語"></a>
+  <img src="https://img.shields.io/badge/VNE-0.1.0+--dev.3-orange?style=for-the-badge" alt="VNE">
 </p>
 
-# VNE MCP Server
+<p align="center">
+  <a href="README.md">🇨🇳 中文</a> |
+  <a href="README.en.md">🇬🇧 English</a> |
+  <a href="README.ja.md">🇯🇵 日本語</a>
+</p>
 
-MCP server for VoidNovelEngine. **15 tools**, Python stdlib only, zero dependencies.
+<h1 align="center">🔧 VNE Tools Collection</h1>
+<h3 align="center">VoidNovelEngine Tools Collection</h3>
 
-Enables AI assistants to read projects, search code, manage assets, validate flows, and monitor console logs.
+<p align="center">
+AI-powered visual novel development toolkit — MCP server, custom nodes, engine patches, scene templates, skill library.
+<br>
+Enables AI assistants to read/write/validate .flow files, hot-reload custom nodes, and generate scenes instantly.
+</p>
 
 ---
 
-## Installation
+## 📑 Navigation
 
-Copy the `tools/` directory to your VNE project root:
+| Category | Content |
+|----------|---------|
+| [🚀 MCP Tools](#-mcp-tools-16) | 16 AI-callable tools |
+| [🧩 Custom Nodes](#-custom-nodes) | `dialog_line` combined dialogue node |
+| [🔩 Engine Patches](#-engine-patches) | mcp_host.lua hot-reload patch |
+| [📚 Skill Library](#-skill-library) | 4 AI skills |
+| [📐 Examples](#-examples) | Campus romance .flow example |
+| [📦 Install](#-install) | Installation guide |
+| [🔟 Top 10 Pitfalls](#-top-10-pitfalls) | Common VNE development traps |
+
+---
+
+## 🚀 MCP Tools (16)
+
+16 MCP (Model Context Protocol) tools for AI assistants to operate VNE projects directly.
+
+### Project Info
+
+| Tool | Description |
+|------|-------------|
+| `vne_project_info` | Project overview (version, asset stats, paths) |
+| `vne_lua_api` | VNE Lua API reference |
+| `vne_export_config` | Export config (entry flow, VPak status) |
+
+### Resource Management
+
+| Tool | Description |
+|------|-------------|
+| `vne_list_resources` | List all assets (filterable by type) |
+| `vne_list_directory` | List directory contents |
+| `vne_get_resource` | Get resource details by GUID |
+| `vne_refresh_assets` | Refresh asset cache after external file creation ★ |
+| `vne_register_asset` | Atomic asset registration (.meta + project.vne) ★ |
+
+### File Operations
+
+| Tool | Description |
+|------|-------------|
+| `vne_read_file` | Read project file |
+| `vne_search` | Search project file contents |
+
+### Flow Operations
+
+| Tool | Description |
+|------|-------------|
+| `vne_validate_flow` | Validate .flow files (pin keys, psv, node limits) ★ |
+| `vne_list_node_types` | List all node types with pin schemas |
+
+### VPak Packaging
+
+| Tool | Description |
+|------|-------------|
+| `vne_pack_resources` | Pack resources into encrypted .vpak |
+| `vne_read_vpak` | List/extract .vpak contents |
+
+### Debug & Dev
+
+| Tool | Description |
+|------|-------------|
+| `vne_console_log` | Read VNE editor console logs in real-time ★ |
+| `vne_reload_custom_nodes` | Hot-reload custom nodes (no VNE restart) ★★ |
+
+> ★ = added in v1.2.0  |  ★★ = added in v1.3.0
+
+---
+
+## 🧩 Custom Nodes
+
+### `dialog_line` — Combined Dialogue Line
+
+**File**: `custom-nodes/dialog_line.lua` (101 lines)  
+**Type ID**: `dialog_line`  
+**Category**: Presentation Control
+
+One node = **hide previous + play audio (optional) + show current dialogue**.
 
 ```
-VoidNovelEngine/
-├── project.vne
-├── application/
-├── tools/                        ← place here
-│   ├── vne-mcp-server/
-│   │   └── vne_mcp_server.py     ← MCP server
-│   └── vne-packager/
-│       └── vpak.py               ← VPak packager
-└── ...
+Traditional (4 nodes):              dialog_line (1 node):
+show_dialog_box ──→ hide ──→       ┌─ prev_dialog (optional, chain)
+                    play_audio ──→  ├─ role_text
+                    show_dialog_box ├─ dialogue_text
+                                    ├─ audio (optional, skip if unset)
+                                    └─ volume (default 0.8)
 ```
+
+**Chain connection**: `nodeA.dialog_box` → `nodeB.prev_dialog`
+
+**Impact**: 4 nodes → 1 node. 10 dialogue lines drop from 40 nodes to 10.
+
+---
+
+## 🔩 Engine Patches
+
+### Hot-Reload Patch
+
+**File**: `engine-patches/mcp_host_hotreload.md`  
+**Target**: `application/framework/mcp_host.lua`
+
+Adds flag file detection in mcp_host.lua's update loop, working with `vne_reload_custom_nodes`.
+
+**Note**: After reloading, close and reopen .flow files that use custom nodes.
+
+---
+
+## 📚 Skill Library
+
+4 AI skills for Hermes Agent.
+
+| Skill | Description |
+|-------|-------------|
+| `void-novel-engine` | Complete VNE guide: project structure, API, VPak spec, .flow format |
+| `vne-flow-patterns` | Flow node patterns: dialog lifecycle, branches, foreground, generation templates |
+| `vne-scene-recipes` | Ready scene templates: classroom confession, cherry tree farewell, rooftop talk |
+| `vne-custom-extensions` | Custom node dev guide: `make_definition` API, `try_check_input` usage |
+
+---
+
+## 📐 Examples
+
+`examples/_dialog_line_test.flow` — 6-node test flow demonstrating `dialog_line` chaining.
+
+---
+
+## 📦 Install
 
 ```bash
-git clone https://github.com/zv163/vne-mcp-server.git
-cp -r vne-mcp-server/tools/ /path/to/your/VNE-project/
-```
-
-Test:
-
-```bash
-python3 tools/vne-mcp-server/vne_mcp_server.py --info
-python3 tools/vne-mcp-server/vne_mcp_server.py --list-tools
+cd YourVNEProject/
+git clone https://github.com/zv163/vne-mcp-server.git tools/vne-mcp-server
+cp tools/vne-mcp-server/custom-nodes/dialog_line.lua application/node/custom/
+# Optional: apply engine patch — see engine-patches/mcp_host_hotreload.md
+# Restart VNE — MCP tools auto-available
 ```
 
 ---
 
-## 15 Tools
+## 🔟 Top 10 Pitfalls
 
-| # | Tool | Purpose | R/O | Since |
-|---|------|---------|:--:|:--:|
-| 1 | `vne_project_info` | Project version, asset counts, paths | ✓ | 1.0 |
-| 2 | `vne_list_resources` | List resources by type | ✓ | 1.0 |
-| 3 | `vne_read_file` | Read project files | ✓ | 1.0 |
-| 4 | `vne_list_directory` | Browse directories | ✓ | 1.0 |
-| 5 | `vne_search` | Full-text search in Lua scripts | ✓ | 1.0 |
-| 6 | `vne_get_resource` | Resource details (incl. .meta) | ✓ | 1.0 |
-| 7 | `vne_lua_api` | Engine Lua API reference | ✓ | 1.0 |
-| 8 | `vne_export_config` | Export config & VPak status | ✓ | 1.0 |
-| 9 | `vne_pack_resources` | Run encrypted VPak packaging | ✗ | 1.0 |
-| 10 | `vne_read_vpak` | List/extract .vpak archives | ✓ | 1.0 |
-| 11 | `vne_console_log` | Real-time editor console log | ✓ | 1.1 |
-| 12 | `vne_refresh_assets` | Refresh asset cache (no restart) | ✗ | **1.2** |
-| 13 | `vne_register_asset` | One-click asset registration | ✗ | **1.2** |
-| 14 | `vne_validate_flow` | Validate .flow files (crash prevention) | ✓ | **1.2** |
-| 15 | `vne_list_node_types` | List all flow node types & pin schemas | ✓ | **1.2** |
+Discovered during campus romance VN development:
+
+| # | Pitfall | Fix |
+|---|---------|-----|
+| 1 | `show_choice_button` output = `route_1` | Use `choice_1`~`choice_5` |
+| 2 | `add_foreground` missing `shader` pin | psv=2, include shader |
+| 3 | `merge_flow` input pins lack key | Avoid this node |
+| 4 | >80 nodes per .flow crashes | Split into scenes |
+| 5 | `show_dialog_box` no auto-replace | Explicit `hide_dialog_box` link |
+| 6 | Dialog hide/show without link | `hide(fade=0.05)` + `show` dual-link |
+| 7 | Same-scene background change | Use `switch_scene`, <60 nodes |
+| 8 | Choice pin key mismatch | `show_choice_button` → `choice_1` |
+| 9 | link `pin_id` is string | Must be int |
+| 10 | Startup crash | Clear invalid `current_graph_flow_guid` |
 
 ---
 
-## v1.2.0 — What's New
+## 📄 License
 
-Based on real-world usage pain points, v1.2.0 adds 4 tools:
-
-### 1. No more engine restarts
-
-Creating .vns/.flow files externally requires an engine restart to be recognized.
-
-→ `vne_refresh_assets` clears the internal cache and forces a re-read of project.vne.
-
-### 2. Safe asset registration
-
-Manually editing project.vne JSON to register new assets is error-prone.
-
-→ `vne_register_asset` creates .meta + updates project.vne atomically. One call, no mistakes.
-
-### 3. Flow crash prevention
-
-Hand-crafted .flow JSON often has wrong pin keys (e.g. `route_1` instead of `choice_1`) or missing keys on merge_flow inputs — causing the VNE editor to crash on open.
-
-→ `vne_validate_flow` checks JSON structure, pin key correctness, and link integrity. **Always call before opening a generated .flow.**
-→ `vne_list_node_types` shows the exact pin schemas for 70+ node types — check before generating.
-
-### Recommended Workflow
-
-```
-1. vne_list_node_types     → learn available nodes and pin names
-2. Generate .flow file     → via Python script or otherwise
-3. vne_validate_flow       → verify no errors
-4. vne_register_asset      → auto-register in project
-5. vne_refresh_assets      → refresh cache
-6. Open in VNE editor      → safe and sound
-```
-
----
-
-## Client Configuration
-
-### Claude Desktop / Cursor
-
-```json
-{
-  "mcpServers": {
-    "vne": {
-      "command": "python3",
-      "args": [
-        "/path/to/VNE-project/tools/vne-mcp-server/vne_mcp_server.py",
-        "--project-path", "/path/to/VNE-project"
-      ]
-    }
-  }
-}
-```
-
-### Hermes Agent
-
-```bash
-cat > ~/.hermes/scripts/vne-mcp-wrapper.sh << 'EOF'
-#!/bin/bash
-exec python3 /path/to/VNE-project/tools/vne-mcp-server/vne_mcp_server.py \
-  --project-path /path/to/VNE-project "$@"
-EOF
-chmod +x ~/.hermes/scripts/vne-mcp-wrapper.sh
-echo "y" | hermes mcp add vne --command ~/.hermes/scripts/vne-mcp-wrapper.sh
-```
-
----
-
-## VPak
-
-```bash
-python3 tools/vne-packager/vpak.py pack resources/ resources.vpak --key my-key
-python3 tools/vne-packager/vpak.py list resources.vpak
-python3 tools/vne-packager/vpak.py extract resources.vpak path/to/file --key my-key
-```
-
-Encryption: XOR + 256-byte rotating key (SHA256-derived).
-
----
-
-## Requirements
-
-- Python 3.8+
-- VoidNovelEngine project
-
----
-
-## License
-
-MIT
+MIT — see [LICENSE](LICENSE)
